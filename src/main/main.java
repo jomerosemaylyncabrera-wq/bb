@@ -6,10 +6,10 @@ import java.util.List;
 import java.util.Map;
 
 public class main {
+
     static Scanner sc = new Scanner(System.in);
     static config con = new config();
 
- 
     public static void viewUsers() {
         String Query = "SELECT * FROM tbl_user";
         String[] headers = {"ID", "Name", "Email", "Type", "Status"};
@@ -33,9 +33,7 @@ public class main {
 
     // --------------------- PET FUNCTIONS ---------------------
     public static void addPet() {
-        System.out.print("Enter Pet ID: ");
-        int petId = sc.nextInt();
-        sc.nextLine();
+        sc.nextLine(); // consume leftover newline
         System.out.print("Enter Pet Name: ");
         String petName = sc.nextLine();
         System.out.print("Enter Owner Name: ");
@@ -45,12 +43,16 @@ public class main {
         System.out.print("Enter Address: ");
         String address = sc.nextLine();
 
-        String sql = "INSERT INTO tbl_vet(petID, petName, ownerName, contactNumber, address) VALUES(?,?,?,?,?)";
-        con.addRecord(sql, petId, petName, ownerName, contact, address);
+        String sql = "INSERT INTO tbl_vet(petName, ownerName, contactNumber, address) VALUES(?,?,?,?)";
+        con.addRecord(sql, petName, ownerName, contact, address);
         System.out.println("✅ Pet Added Successfully!");
     }
 
     public static void updatePet() {
+        // Show all pets first
+        System.out.println("\nAvailable Pets:");
+        viewPets(); // this shows all pets with their IDs
+
         System.out.print("Enter Pet ID to Update: ");
         int id = sc.nextInt();
         sc.nextLine();
@@ -69,6 +71,10 @@ public class main {
     }
 
     public static void deletePet() {
+        // Show all pets first
+        System.out.println("\nAvailable Pets:");
+        viewPets();
+
         System.out.print("Enter Pet ID to Delete: ");
         int id = sc.nextInt();
         String sql = "DELETE FROM tbl_vet WHERE petID=?";
@@ -78,8 +84,7 @@ public class main {
 
     // --------------------- APPOINTMENT FUNCTIONS ---------------------
     public static void addAppointment() {
-        System.out.print("Enter Appointment ID: ");
-        int appId = sc.nextInt();
+        viewPets();
         System.out.print("Enter Pet ID: ");
         int petId = sc.nextInt();
         sc.nextLine();
@@ -87,15 +92,19 @@ public class main {
         String date = sc.nextLine();
         System.out.print("Enter Time (HH:MM): ");
         String time = sc.nextLine();
-        System.out.print("Enter Status: ");
-        String status = sc.nextLine();
 
-        String sql = "INSERT INTO tbl_appointment(appID, petID, date, time, status) VALUES(?,?,?,?,?)";
-        con.addRecord(sql, appId, petId, date, time, status);
-        System.out.println("✅ Appointment Added!");
+        String status = "Pending"; // Automatically set status to Pending
+
+        String sql = "INSERT INTO tbl_appointment(petID, date, time, status) VALUES(?,?,?,?)";
+        con.addRecord(sql, petId, date, time, status);
+        System.out.println("✅ Appointment Added! Status = Pending");
     }
 
     public static void updateAppointment() {
+        // Show all appointments first
+        System.out.println("\nAvailable Appointments:");
+        viewAppointments();
+
         System.out.print("Enter Appointment ID to Update: ");
         int appId = sc.nextInt();
         sc.nextLine();
@@ -112,6 +121,10 @@ public class main {
     }
 
     public static void deleteAppointment() {
+        // Show all appointments first
+        System.out.println("\nAvailable Appointments:");
+        viewAppointments();
+
         System.out.print("Enter Appointment ID to Delete: ");
         int appId = sc.nextInt();
         String sql = "DELETE FROM tbl_appointment WHERE appID=?";
@@ -128,7 +141,8 @@ public class main {
             System.out.println("2. View Users");
             System.out.println("3. View Pets");
             System.out.println("4. View Appointments");
-            System.out.println("5. Logout");
+            System.out.println("5. Approve Appointments"); // NEW
+            System.out.println("6. Logout");
             System.out.print("Choose: ");
             choice = sc.nextInt();
 
@@ -151,12 +165,20 @@ public class main {
                     viewAppointments();
                     break;
                 case 5:
+                    viewAppointments(); // Show pending appointments
+                    System.out.print("Enter Appointment ID to Approve: ");
+                    int appId = sc.nextInt();
+                    String sql2 = "UPDATE tbl_appointment SET status=? WHERE appID=?";
+                    con.updateRecord(sql2, "Approved", appId);
+                    System.out.println("✅ Appointment Approved!");
+                    break;
+                case 6:
                     System.out.println("Logging out...");
                     break;
                 default:
                     System.out.println("Invalid choice!");
             }
-        } while (choice != 5);
+        } while (choice != 6);
     }
 
     public static void staffDashboard() {
@@ -228,9 +250,9 @@ public class main {
                     String em = sc.next();
                     System.out.print("Enter Password: ");
                     String pas = sc.next();
-
+                    String hashpass = con.hashPassword(pas);
                     String qry = "SELECT * FROM tbl_user WHERE u_email = ? AND u_pass = ?";
-                    List<Map<String, Object>> result = con.fetchRecords(qry, em, pas);
+                    List<Map<String, Object>> result = con.fetchRecords(qry, em, hashpass);
 
                     if (result.isEmpty()) {
                         System.out.println("❌ INVALID CREDENTIALS");
@@ -280,9 +302,10 @@ public class main {
 
                     System.out.print("Enter Password: ");
                     String pass = sc.next();
+                    String hashedPassword = con.hashPassword(pass);
 
                     String sqlInsert = "INSERT INTO tbl_user(u_name, u_email, u_type, u_status, u_pass) VALUES(?,?,?,?,?)";
-                    con.addRecord(sqlInsert, name, email, tp, status, pass);
+                    con.addRecord(sqlInsert, name, email, tp, status, hashedPassword);
                     System.out.println("✅ Registration successful! Status = " + status);
                     break;
 
@@ -301,5 +324,3 @@ public class main {
         } while (cont == 'Y' || cont == 'y');
     }
 }
-
-
