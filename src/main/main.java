@@ -10,6 +10,9 @@ public class main {
     static Scanner sc = new Scanner(System.in);
     static config con = new config();
 
+    // =========================================================
+    // VIEW RECORD FUNCTIONS
+    // =========================================================
     public static void viewUsers() {
         String Query = "SELECT * FROM tbl_user";
         String[] headers = {"ID", "Name", "Email", "Type", "Status"};
@@ -17,172 +20,297 @@ public class main {
         con.viewRecords(Query, headers, columns);
     }
 
+    public static void viewOwners() {
+        String Query = "SELECT * FROM tbl_owner";
+        String[] headers = {"Owner ID", "Name", "Contact", "Address"};
+        String[] columns = {"ownerID", "ownerName", "contactNumber", "address"};
+        con.viewRecords(Query, headers, columns);
+    }
+
     public static void viewPets() {
-        String Query = "SELECT * FROM tbl_vet";
+        String Query = 
+            "SELECT p.petID, p.petName, o.ownerName, o.contactNumber, o.address " +
+            "FROM tbl_pet p INNER JOIN tbl_owner o ON p.ownerID = o.ownerID";
+
         String[] headers = {"Pet ID", "Pet Name", "Owner", "Contact", "Address"};
         String[] columns = {"petID", "petName", "ownerName", "contactNumber", "address"};
         con.viewRecords(Query, headers, columns);
     }
 
     public static void viewAppointments() {
-        String Query = "SELECT * FROM tbl_appointment";
-        String[] headers = {"App ID", "Pet ID", "Date", "Time", "Status"};
-        String[] columns = {"appID", "petID", "date", "time", "status"};
+        String Query = 
+            "SELECT a.appID, p.petName, o.ownerName, a.date, a.time, a.status " +
+            "FROM tbl_appointment a " +
+            "INNER JOIN tbl_pet p ON a.petID = p.petID " +
+            "INNER JOIN tbl_owner o ON p.ownerID = o.ownerID";
+
+        String[] headers = {"App ID", "Pet Name", "Owner", "Date", "Time", "Status"};
+        String[] columns = {"appID", "petName", "ownerName", "date", "time", "status"};
         con.viewRecords(Query, headers, columns);
     }
 
-    // --------------------- PET FUNCTIONS ---------------------
-    public static void addPet() {
-        sc.nextLine(); // consume leftover newline
-        System.out.print("Enter Pet Name: ");
-        String petName = sc.nextLine();
+    // =========================================================
+    // OWNER MANAGEMENT
+    // =========================================================
+    public static void addOwner() {
+        sc.nextLine();
         System.out.print("Enter Owner Name: ");
-        String ownerName = sc.nextLine();
+        String name = sc.nextLine();
         System.out.print("Enter Contact Number: ");
         String contact = sc.nextLine();
         System.out.print("Enter Address: ");
         String address = sc.nextLine();
 
-        String sql = "INSERT INTO tbl_vet(petName, ownerName, contactNumber, address) VALUES(?,?,?,?)";
-        con.addRecord(sql, petName, ownerName, contact, address);
+        String sql = "INSERT INTO tbl_owner(ownerName, contactNumber, address) VALUES(?,?,?)";
+        con.addRecord(sql, name, contact, address);
+
+        System.out.println("✅ Owner Added!");
+    }
+
+    // =========================================================
+    // PET MANAGEMENT
+    // =========================================================
+    public static void addPet() {
+        System.out.println("\n=== OWNER LIST ===");
+        viewOwners();
+
+        System.out.print("Enter Owner ID: ");
+        int ownerID = sc.nextInt();
+
+        String chk = "SELECT * FROM tbl_owner WHERE ownerID=?";
+        List<Map<String, Object>> ownerExists = con.fetchRecords(chk, ownerID);
+
+        if (ownerExists.isEmpty()) {
+            System.out.println("❌ Owner does NOT exist! Add owner first.");
+            return;
+        }
+
+        sc.nextLine();
+        System.out.print("Enter Pet Name: ");
+        String petName = sc.nextLine();
+
+        String sql = "INSERT INTO tbl_pet(petName, ownerID) VALUES(?,?)";
+        con.addRecord(sql, petName, ownerID);
+
         System.out.println("✅ Pet Added Successfully!");
     }
 
     public static void updatePet() {
-        // Show all pets first
-        System.out.println("\nAvailable Pets:");
-        viewPets(); // this shows all pets with their IDs
+        viewPets();
 
         System.out.print("Enter Pet ID to Update: ");
-        int id = sc.nextInt();
+        int petID = sc.nextInt();
         sc.nextLine();
+
         System.out.print("Enter New Pet Name: ");
         String petName = sc.nextLine();
-        System.out.print("Enter New Owner Name: ");
-        String ownerName = sc.nextLine();
-        System.out.print("Enter New Contact: ");
-        String contact = sc.nextLine();
-        System.out.print("Enter New Address: ");
-        String address = sc.nextLine();
+        
+        System.out.println("\n=== OWNER LIST ===");
+        viewOwners();
+        System.out.print("Enter New Owner ID: ");
+        int newOwnerID = sc.nextInt();
 
-        String sql = "UPDATE tbl_vet SET petName=?, ownerName=?, contactNumber=?, address=? WHERE petID=?";
-        con.updateRecord(sql, petName, ownerName, contact, address, id);
+        String chk = "SELECT * FROM tbl_owner WHERE ownerID=?";
+        if (con.fetchRecords(chk, newOwnerID).isEmpty()) {
+            System.out.println("❌ Owner does NOT exist!");
+            return;
+        }
+
+        String sql = "UPDATE tbl_pet SET petName=?, ownerID=? WHERE petID=?";
+        con.updateRecord(sql, petName, newOwnerID, petID);
+
         System.out.println("✏️ Pet Updated!");
     }
 
     public static void deletePet() {
-        // Show all pets first
-        System.out.println("\nAvailable Pets:");
         viewPets();
 
         System.out.print("Enter Pet ID to Delete: ");
         int id = sc.nextInt();
-        String sql = "DELETE FROM tbl_vet WHERE petID=?";
+
+        String sql = "DELETE FROM tbl_pet WHERE petID=?";
         con.deleteRecord(sql, id);
         System.out.println("🗑️ Pet Deleted!");
     }
 
-    // --------------------- APPOINTMENT FUNCTIONS ---------------------
+    // =========================================================
+    // APPOINTMENT MANAGEMENT
+    // =========================================================
     public static void addAppointment() {
         viewPets();
         System.out.print("Enter Pet ID: ");
-        int petId = sc.nextInt();
+        int petID = sc.nextInt();
+
+        String chk = "SELECT * FROM tbl_pet WHERE petID=?";
+        if (con.fetchRecords(chk, petID).isEmpty()) {
+            System.out.println("❌ Pet does NOT exist!");
+            return;
+        }
+
         sc.nextLine();
-        System.out.print("Enter Date (YYYY-MM-DD): ");
+        System.out.print("Enter Appointment Date (YYYY-MM-DD): ");
         String date = sc.nextLine();
         System.out.print("Enter Time (HH:MM): ");
         String time = sc.nextLine();
 
-        String status = "Pending"; // Automatically set status to Pending
-
         String sql = "INSERT INTO tbl_appointment(petID, date, time, status) VALUES(?,?,?,?)";
-        con.addRecord(sql, petId, date, time, status);
-        System.out.println("✅ Appointment Added! Status = Pending");
+        con.addRecord(sql, petID, date, time, "Pending");
+
+        System.out.println("✅ Appointment Added!");
     }
 
     public static void updateAppointment() {
-        // Show all appointments first
-        System.out.println("\nAvailable Appointments:");
         viewAppointments();
-
         System.out.print("Enter Appointment ID to Update: ");
-        int appId = sc.nextInt();
+        int appID = sc.nextInt();
         sc.nextLine();
-        System.out.print("Enter New Date (YYYY-MM-DD): ");
+
+        System.out.print("New Date: ");
         String date = sc.nextLine();
-        System.out.print("Enter New Time (HH:MM): ");
+        System.out.print("New Time: ");
         String time = sc.nextLine();
-        System.out.print("Enter New Status: ");
+        System.out.print("New Status: ");
         String status = sc.nextLine();
 
         String sql = "UPDATE tbl_appointment SET date=?, time=?, status=? WHERE appID=?";
-        con.updateRecord(sql, date, time, status, appId);
+        con.updateRecord(sql, date, time, status, appID);
+
         System.out.println("✏️ Appointment Updated!");
     }
 
     public static void deleteAppointment() {
-        // Show all appointments first
-        System.out.println("\nAvailable Appointments:");
         viewAppointments();
 
         System.out.print("Enter Appointment ID to Delete: ");
-        int appId = sc.nextInt();
+        int id = sc.nextInt();
+
         String sql = "DELETE FROM tbl_appointment WHERE appID=?";
-        con.deleteRecord(sql, appId);
+        con.deleteRecord(sql, id);
+
         System.out.println("🗑️ Appointment Deleted!");
     }
 
-    // --------------------- DASHBOARDS ---------------------
+    // =========================================================
+    // DASHBOARD — SUPER ADMIN
+    // =========================================================
+    public static void superAdminDashboard() {
+        int choice;
+
+        do {
+            System.out.println("\n=== SUPER ADMIN DASHBOARD ===");
+            System.out.println("1. Approve Admin Accounts");
+            System.out.println("2. Approve Staff Accounts");
+            System.out.println("3. View Users");
+            System.out.println("4. Owner Management (Add Owner)");
+            System.out.println("5. Logout");
+            System.out.print("Choose: ");
+            choice = sc.nextInt();
+
+            switch (choice) {
+                case 1:
+                    String q1 = 
+                        "SELECT * FROM tbl_user WHERE u_type='Admin' AND u_status='Pending'";
+                    con.viewRecords(q1, 
+                        new String[]{"ID","Name","Email","Type","Status"},
+                        new String[]{"u_id","u_name","u_email","u_type","u_status"});
+                    System.out.print("Approve Admin ID: ");
+                    int aid = sc.nextInt();
+                    con.updateRecord("UPDATE tbl_user SET u_status='Approved' WHERE u_id=?", aid);
+                    System.out.println("✅ Admin Approved!");
+                    break;
+
+                case 2:
+                    String q2 = 
+                        "SELECT * FROM tbl_user WHERE u_type='Staff' AND u_status='Pending'";
+                    con.viewRecords(q2,
+                        new String[]{"ID","Name","Email","Type","Status"},
+                        new String[]{"u_id","u_name","u_email","u_type","u_status"});
+                    System.out.print("Approve Staff ID: ");
+                    int sid = sc.nextInt();
+                    con.updateRecord("UPDATE tbl_user SET u_status='Approved' WHERE u_id=?", sid);
+                    System.out.println("✅ Staff Approved!");
+                    break;
+
+                case 3:
+                    viewUsers();
+                    break;
+
+                case 4:
+                    addOwner();
+                    break;
+
+                case 5:
+                    System.out.println("Logging out...");
+                    break;
+
+                default:
+                    System.out.println("Invalid Choice!");
+            }
+        } while (choice != 5);
+    }
+
+    // =========================================================
+    // DASHBOARD — ADMIN
+    // =========================================================
     public static void adminDashboard() {
         int choice;
+
         do {
             System.out.println("\n=== ADMIN DASHBOARD ===");
-            System.out.println("1. Approve Accounts");
+            System.out.println("1. Approve Staff Accounts");
             System.out.println("2. View Users");
-            System.out.println("3. View Pets");
-            System.out.println("4. View Appointments");
-            System.out.println("5. Approve Appointments"); // NEW
+            System.out.println("3. View Owners");
+            System.out.println("4. View Pets");
+            System.out.println("5. View Appointments");
             System.out.println("6. Logout");
             System.out.print("Choose: ");
             choice = sc.nextInt();
 
             switch (choice) {
                 case 1:
-                    viewUsers();
-                    System.out.print("Enter ID to Approve: ");
-                    int id = sc.nextInt();
-                    String sql = "UPDATE tbl_user SET u_status=? WHERE u_id=?";
-                    con.updateRecord(sql, "Approved", id);
-                    System.out.println("✅ User Approved!");
+                    String q = 
+                        "SELECT * FROM tbl_user WHERE u_type='Staff' AND u_status='Pending'";
+                    con.viewRecords(q,
+                        new String[]{"ID","Name","Email","Type","Status"},
+                        new String[]{"u_id","u_name","u_email","u_type","u_status"});
+                    System.out.print("Enter Staff ID to Approve: ");
+                    int sid = sc.nextInt();
+                    con.updateRecord("UPDATE tbl_user SET u_status='Approved' WHERE u_id=?", sid);
+                    System.out.println("✅ Staff Approved!");
                     break;
+
                 case 2:
                     viewUsers();
                     break;
+
                 case 3:
+                    viewOwners();
+                    break;
+
+                case 4:
                     viewPets();
                     break;
-                case 4:
+
+                case 5:
                     viewAppointments();
                     break;
-                case 5:
-                    viewAppointments(); // Show pending appointments
-                    System.out.print("Enter Appointment ID to Approve: ");
-                    int appId = sc.nextInt();
-                    String sql2 = "UPDATE tbl_appointment SET status=? WHERE appID=?";
-                    con.updateRecord(sql2, "Approved", appId);
-                    System.out.println("✅ Appointment Approved!");
-                    break;
+
                 case 6:
                     System.out.println("Logging out...");
                     break;
+
                 default:
-                    System.out.println("Invalid choice!");
+                    System.out.println("Invalid Choice!");
             }
         } while (choice != 6);
     }
 
+    // =========================================================
+    // DASHBOARD — STAFF
+    // =========================================================
     public static void staffDashboard() {
         int choice;
+
         do {
             System.out.println("\n=== STAFF DASHBOARD ===");
             System.out.println("1. Add Pet");
@@ -198,41 +326,25 @@ public class main {
             choice = sc.nextInt();
 
             switch (choice) {
-                case 1:
-                    addPet();
-                    break;
-                case 2:
-                    updatePet();
-                    break;
-                case 3:
-                    deletePet();
-                    break;
-                case 4:
-                    addAppointment();
-                    break;
-                case 5:
-                    updateAppointment();
-                    break;
-                case 6:
-                    deleteAppointment();
-                    break;
-                case 7:
-                    viewPets();
-                    break;
-                case 8:
-                    viewAppointments();
-                    break;
-                case 9:
-                    System.out.println("Logging out...");
-                    break;
-                default:
-                    System.out.println("Invalid choice!");
+                case 1: addPet(); break;
+                case 2: updatePet(); break;
+                case 3: deletePet(); break;
+                case 4: addAppointment(); break;
+                case 5: updateAppointment(); break;
+                case 6: deleteAppointment(); break;
+                case 7: viewPets(); break;
+                case 8: viewAppointments(); break;
+                case 9: System.out.println("Logging out..."); break;
+                default: System.out.println("Invalid choice!");
             }
         } while (choice != 9);
     }
 
-    // --------------------- MAIN PROGRAM ---------------------
+    // =========================================================
+    // LOGIN + REGISTER
+    // =========================================================
     public static void main(String[] args) {
+
         con.connectDB();
         char cont;
 
@@ -245,27 +357,34 @@ public class main {
             int choice = sc.nextInt();
 
             switch (choice) {
-                case 1: // LOGIN
-                    System.out.print("Enter Email: ");
+
+                // LOGIN
+                case 1:
+                    System.out.print("Email: ");
                     String em = sc.next();
-                    System.out.print("Enter Password: ");
+                    System.out.print("Password: ");
                     String pas = sc.next();
-                    String hashpass = con.hashPassword(pas);
-                    String qry = "SELECT * FROM tbl_user WHERE u_email = ? AND u_pass = ?";
-                    List<Map<String, Object>> result = con.fetchRecords(qry, em, hashpass);
+                    String hash = con.hashPassword(pas);
 
-                    if (result.isEmpty()) {
-                        System.out.println("❌ INVALID CREDENTIALS");
+                    String sql = "SELECT * FROM tbl_user WHERE u_email=? AND u_pass=?";
+                    List<Map<String, Object>> res = con.fetchRecords(sql, em, hash);
+
+                    if (res.isEmpty()) {
+                        System.out.println("❌ Invalid Credentials!");
                     } else {
-                        Map<String, Object> user = result.get(0);
-                        String stat = user.get("u_status").toString();
-                        String type = user.get("u_type").toString();
+                        Map<String, Object> u = res.get(0);
 
-                        if (stat.equals("Pending")) {
-                            System.out.println("⚠️ Account Pending! Contact Admin.");
+                        String type = u.get("u_type").toString();
+                        String status = u.get("u_status").toString();
+
+                        if (status.equals("Pending")) {
+                            System.out.println("⚠️ Account Pending Approval!");
                         } else {
-                            System.out.println("✅ LOGIN SUCCESS!");
-                            if (type.equals("Admin")) {
+                            System.out.println("✅ Login Successful!");
+
+                            if (type.equals("SuperAdmin")) {
+                                superAdminDashboard();
+                            } else if (type.equals("Admin")) {
                                 adminDashboard();
                             } else if (type.equals("Staff")) {
                                 staffDashboard();
@@ -274,51 +393,49 @@ public class main {
                     }
                     break;
 
-                case 2: // REGISTER
-                    System.out.print("Enter Name: ");
-                    String name = sc.next();
+                // REGISTER
+                case 2:
+                    sc.nextLine();
+                    System.out.print("Enter Full Name: ");
+                    String name = sc.nextLine();
+
                     System.out.print("Enter Email: ");
                     String email = sc.next();
 
-                    while (true) {
-                        String chk = "SELECT * FROM tbl_user WHERE u_email = ?";
-                        List<Map<String, Object>> checkEmail = con.fetchRecords(chk, email);
-                        if (checkEmail.isEmpty()) {
-                            break;
-                        } else {
-                            System.out.print("Email exists! Enter another: ");
-                            email = sc.next();
-                        }
+                    // Check duplicate email
+                    while (!con.fetchRecords("SELECT * FROM tbl_user WHERE u_email=?", email).isEmpty()) {
+                        System.out.print("Email already exists. Enter new: ");
+                        email = sc.next();
                     }
 
-                    System.out.print("Enter User Type (1-Admin / 2-Staff): ");
+                    // User type
+                    System.out.print("User Type (1-Admin, 2-Staff): ");
                     int tpChoice = sc.nextInt();
-                    while (tpChoice < 1 || tpChoice > 2) {
-                        System.out.print("Invalid choice. Enter again: ");
-                        tpChoice = sc.nextInt();
-                    }
-                    String tp = (tpChoice == 1) ? "Admin" : "Staff";
-                    String status = (tp.equals("Admin")) ? "Approved" : "Pending";
+                    String type = (tpChoice == 1) ? "Admin" : "Staff";
 
-                    System.out.print("Enter Password: ");
+                    String status = "Pending";
+
+                    System.out.print("Password: ");
                     String pass = sc.next();
-                    String hashedPassword = con.hashPassword(pass);
+                    String hashed = con.hashPassword(pass);
 
-                    String sqlInsert = "INSERT INTO tbl_user(u_name, u_email, u_type, u_status, u_pass) VALUES(?,?,?,?,?)";
-                    con.addRecord(sqlInsert, name, email, tp, status, hashedPassword);
-                    System.out.println("✅ Registration successful! Status = " + status);
+                    String reg = "INSERT INTO tbl_user(u_name, u_email, u_type, u_status, u_pass) VALUES(?,?,?,?,?)";
+                    con.addRecord(reg, name, email, type, status, hashed);
+
+                    System.out.println("✅ Registered Successfully! Status: Pending Approval");
                     break;
 
+                // EXIT
                 case 3:
-                    System.out.println("👋 Program Ended.");
+                    System.out.println("Program Ended.");
                     System.exit(0);
                     break;
 
                 default:
-                    System.out.println("❌ Invalid choice.");
+                    System.out.println("Invalid choice!");
             }
 
-            System.out.print("Do you want to continue? (Y/N): ");
+            System.out.print("Return to menu? (Y/N): ");
             cont = sc.next().charAt(0);
 
         } while (cont == 'Y' || cont == 'y');
