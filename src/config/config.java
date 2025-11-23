@@ -10,10 +10,52 @@ public class config {
             Class.forName("org.sqlite.JDBC"); // Load the SQLite JDBC driver
             con = DriverManager.getConnection("jdbc:sqlite:vetmanagement.db"); // Establish connection
             System.out.println("");
+            createMissingTables(con);
         } catch (Exception e) {
             System.out.println("Connection Failed: " + e);
         }
         return con;
+    }
+    
+    private static void createMissingTables(Connection conn) {
+        // tbl_admin
+        String tblAdmin = "CREATE TABLE IF NOT EXISTS tbl_admin (" +
+                "admin_id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "name TEXT NOT NULL," +
+                "email TEXT UNIQUE NOT NULL," +
+                "password TEXT NOT NULL," +
+                "type TEXT NOT NULL," +
+                "status TEXT NOT NULL" +
+                ");";
+
+        // tbl_owner
+        String tblOwner = "CREATE TABLE IF NOT EXISTS tbl_owner (" +
+                "owner_id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "name TEXT NOT NULL," +
+                "email TEXT UNIQUE NOT NULL," +
+                "password TEXT NOT NULL," +
+                "status TEXT NOT NULL" +
+                ");";
+
+        // tbl_staff
+        String tblStaff = "CREATE TABLE IF NOT EXISTS tbl_staff (" +
+                "staff_id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "owner_id INTEGER," +
+                "name TEXT NOT NULL," +
+                "email TEXT UNIQUE NOT NULL," +
+                "password TEXT NOT NULL," +
+                "status TEXT NOT NULL," +
+                "FOREIGN KEY(owner_id) REFERENCES tbl_owner(owner_id)" +
+                ");";
+
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(tblAdmin);
+            stmt.execute(tblOwner);
+            stmt.execute(tblStaff);
+            System.out.println("");
+        } catch (SQLException e) {
+            System.out.println("❌ Table Creation Failed: " + e.getMessage());
+        }
     }
     
     public void addRecord(String sql, Object... values) {
